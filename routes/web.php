@@ -10,6 +10,9 @@ use App\Http\Controllers\ShortUrlExportController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Route;
 
+// Root redirect — guests go to login, authenticated users go to dashboard.
+Route::redirect('/', '/dashboard');
+
 // Public short-link redirect — no authentication required.
 Route::get('/s/{code}', RedirectController::class)->name('redirect');
 
