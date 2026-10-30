@@ -1,52 +1,45 @@
 # URL Shortener
 
-A multi-tenant URL Shortener assignment built with Laravel 11. Companies (clients) are onboarded through an invitation-only workflow; users never self-register.
+A multi-company URL shortener built with Laravel 11. Users belong to companies and join strictly through email invitations. There is no public self-registration.
 
----
+## Role Permissions
 
-## Features by Role
-
-| Role | Create Short URLs | View Short URLs | Invite Users | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **SuperAdmin** | No (403 Forbidden) | All companies | Admin (creates new company) | No company affiliation (`company_id = null`) |
-| **Admin** | Yes | Own company only | Admin, Member (own company only) | Extra "Created By" column on URL list |
-| **Member** | Yes | Own URLs only | No (403 Forbidden) | Cannot see colleague URLs in same company |
-| **Sales** | No (403 Forbidden) | None (403 Forbidden) | No (403 Forbidden) | Valid role with no URL permissions |
-| **Manager** | No (403 Forbidden) | None (403 Forbidden) | No (403 Forbidden) | Valid role with no URL permissions |
-
----
+| Role | Create URLs | View URLs | Can Invite | Notes |
+| --- | --- | --- | --- | --- |
+| SuperAdmin | No | All companies | Yes | Can invite an Admin into a new company. Has no company (`company_id = null`). |
+| Admin | Yes | Own company only | Yes | Can invite Admins or Members into their own company only. |
+| Member | Yes | Own URLs only | No | Cannot see URLs created by colleagues in the same company. |
+| Sales | No | No | No | Reserved role with no URL or invitation permissions. |
+| Manager | No | No | No | Reserved role with no URL or invitation permissions. |
 
 ## Tech Stack
 
-- **PHP**: 8.2+
-- **Framework**: Laravel 11
-- **Database**: MySQL (XAMPP compatible) and SQLite (switchable via `.env` only)
-- **Authentication**: Laravel Breeze (Blade stack) — login and logout only (self-registration and password resets removed)
-- **Frontend**: Semantic HTML Blade templates with unified layout, responsive forms, CSRF tokens, flash messages, and validation feedback
-- **Test Suite**: Pest Feature Tests (28 tests, 73 assertions, RefreshDatabase)
-- **Code Style**: PSR-12 standard (formatted via Laravel Pint)
-
----
+- PHP 8.2+
+- Laravel 11
+- MySQL (default in `.env`) and SQLite support
+- Laravel Breeze (Blade stack, login/logout only)
+- Pest feature tests
+- Laravel Pint for code styling
 
 ## Local Setup
 
-### 1. Clone & Install Dependencies
+### 1. Clone repository and install dependencies
 ```bash
 git clone <repo-url>
 cd sembarkurlshort
 composer install
 ```
 
-### 2. Environment Configuration
+### 2. Configure environment
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-### 3. Database Setup
+### 3. Database configuration
 
-#### Option A: MySQL (Default with XAMPP)
-Ensure MySQL is running (e.g. in XAMPP on port 3306), create the database, and verify `.env`:
+#### Option A: MySQL (Default)
+Make sure MySQL is running (e.g. in XAMPP on port 3306), create the database `urlshortener`, and confirm your `.env`:
 ```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -58,200 +51,157 @@ DB_COLLATION=utf8mb4_unicode_ci
 ```
 
 #### Option B: SQLite
-To use SQLite instead, set the following in `.env`:
+To switch to SQLite, update `.env`:
 ```env
 DB_CONNECTION=sqlite
 DB_DATABASE=
 ```
-And create the SQLite file:
+And create the database file:
 ```bash
 touch database/database.sqlite
 ```
 
-### 4. Run Migrations & Seeders
+### 4. Run migrations and seeder
 ```bash
 php artisan migrate --seed
 ```
 
-### 5. Start Development Server
+### 5. Start the local server
 ```bash
 php artisan serve
 ```
-Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser.
+Open `http://127.0.0.1:8000` in your browser.
 
----
+## Seeded SuperAdmin Account
 
-## Seeded SuperAdmin Credentials
+| Field | Default Value | Environment Variable |
+| --- | --- | --- |
+| Email | `superadmin@urlshortener.test` | `SUPERADMIN_EMAIL` |
+| Password | `password` | `SUPERADMIN_PASSWORD` |
 
-| Field | Default Value | Config Key | Environment Variable |
-| :--- | :--- | :--- | :--- |
-| **Email** | `superadmin@urlshortener.test` | `superadmin.email` | `SUPERADMIN_EMAIL` |
-| **Password** | `password` | `superadmin.password` | `SUPERADMIN_PASSWORD` |
+The SuperAdmin account is created via raw SQL (`DB::insert`) with bound parameters and `Hash::make()` inside `DatabaseSeeder.php`, without using Eloquent or factories.
 
-> As required, the bootstrap SuperAdmin is created in `DatabaseSeeder.php` using **raw SQL** (`DB::insert`) with bound parameters and `Hash::make()` — bypassing Eloquent models and factories.
+## Testing the Invitation Flow
 
----
+The app uses `MAIL_MAILER=log`, so no real mail server is needed.
 
-## How to Test the Invitation Flow (Without a Mail Server)
+1. Log in as SuperAdmin (`superadmin@urlshortener.test` / `password`).
+2. Click "Invite New Client", enter a company name and email, and submit.
+3. The generated acceptance link will appear in a flash message on the page. It is also logged to `storage/logs/laravel.log`.
+4. Open the link in an incognito window (`/invitations/{token}`).
+5. Enter and confirm a password. The account is created, associated with the company, and automatically logged in.
+6. The token is marked accepted. Attempting to reuse or visit an expired token returns a 410 response.
 
-The application uses the `log` mail driver (`MAIL_MAILER=log`), so no SMTP server is required for testing:
+Admins can invite team members to their own company using the same flow from their dashboard.
 
-1. Log in as **SuperAdmin** and click **"Invite New Client"** on the dashboard.
-2. Enter a Client (Company) name and the Admin's email, then submit.
-3. Upon submission:
-   - The direct invitation acceptance link is displayed in an informational flash alert on the page.
-   - The same link is written to `storage/logs/laravel.log` via the `InvitationMail` mailable.
-4. Open the invitation link in an incognito window (`/invitations/{token}`).
-5. Set a password with confirmation and submit.
-6. The user account is created with the invited role and company, and logged in directly.
-7. Attempting to use an expired token, an already-accepted token, or an existing user's email will be rejected.
+## Running Tests
 
----
+Automated tests are written with Pest and use an in-memory SQLite database (`:memory:`) configured in `phpunit.xml` so the development database is never wiped.
 
-## Running Automated Tests
-
-Tests are written using Pest and execute against an in-memory SQLite database (`:memory:`) via `phpunit.xml`, ensuring the local development database is never wiped or altered during test execution:
-
-```bash
-php artisan test
-```
-
-Or for clean output without code coverage overhead:
 ```bash
 php artisan test --no-coverage
 ```
 
-### Test Coverage Summary (28 Feature Tests, 73 Assertions):
-- Admin and Member can create short URLs.
-- SuperAdmin, Sales, and Manager cannot create short URLs (assert 403).
-- SuperAdmin views short URLs across all companies, but cannot create.
-- Admin views only short URLs of their own company.
-- Member views only short URLs created by themselves.
-- Short URLs are publicly resolvable without login and redirect (`assertRedirect`); unknown code returns 404.
-- Atomic hit counter increments by 1 per visit.
-- SuperAdmin invites an Admin with a new company within a database transaction.
-- Admin invites Admin or Member within their own company only.
-- Member cannot invite (assert 403).
-- Accepting an invitation creates the user with the correct role/company; expired and reused tokens are rejected with 410.
-- SuperAdmin seeder verification (role `SuperAdmin`, `company_id = null`).
-- Date filter returns only URLs inside selected calendar interval.
-- CSV export streams only rows visible to the authenticated user.
-- SuperAdmin Clients page aggregates company member count and hit totals.
-
----
+All 28 tests pass, covering:
+- Role permissions on short URL creation (Admin/Member allowed; SuperAdmin/Sales/Manager forbidden with 403)
+- Multi-company visibility isolation (SuperAdmin sees all, Admin sees own company, Member sees only their own)
+- Public redirect (`/s/{code}`) and atomic hit counter increments
+- Invitation creation, role restrictions, token expiry, reuse prevention, and duplicate email checks
+- Date interval filters
+- Streamed CSV export authorization and scoping
+- SuperAdmin seeder verification
 
 ## Routes
 
-| Method | URI | Route Name | Middleware | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/` | — | None | Redirects to `/dashboard` |
-| `GET` | `/login` | `login` | `guest` | Displays login form |
-| `POST` | `/login` | — | `guest` | Authenticates user |
-| `POST` | `/logout` | `logout` | `auth` | Terminates session |
-| `GET` | `/dashboard` | `dashboard` | `auth` | Renders role-specific dashboard |
-| `GET` | `/short-urls` | `short-urls.index` | `auth` | Paginated short URLs table |
-| `GET` | `/short-urls/create` | `short-urls.create` | `auth` | Short URL generation form |
-| `POST` | `/short-urls` | `short-urls.store` | `auth` | Validates & generates short URL |
-| `GET` | `/short-urls/export` | `short-urls.export` | `auth` | Streamed CSV download |
-| `GET` | `/invitations/create` | `invitations.create` | `auth` | Role-based invite form |
-| `POST` | `/invitations` | `invitations.store` | `auth` | Generates token & sends invite |
-| `GET` | `/invitations/{token}` | `invitations.accept` | Public | Invitation acceptance & password form |
-| `POST` | `/invitations/{token}` | `invitations.accept.store` | Public | Creates account & logs in user |
-| `GET` | `/clients` | `clients.index` | `auth` | SuperAdmin client companies overview |
-| `GET` | `/team` | `team.index` | `auth` | Admin team members list |
-| `GET` | `/s/{code}` | `redirect` | Public | Resolves short URL, increments hit, redirects |
-
----
+| Method | URI | Name | Middleware | Description |
+| --- | --- | --- | --- | --- |
+| GET | `/` | - | None | Redirects to `/dashboard` |
+| GET | `/login` | `login` | `guest` | Login form |
+| POST | `/login` | - | `guest` | Authenticate user |
+| POST | `/logout` | `logout` | `auth` | Log out |
+| GET | `/dashboard` | `dashboard` | `auth` | Role-based dashboard |
+| GET | `/short-urls` | `short-urls.index` | `auth` | Paginated URL list |
+| GET | `/short-urls/create` | `short-urls.create` | `auth` | URL creation form |
+| POST | `/short-urls` | `short-urls.store` | `auth` | Store new short URL |
+| GET | `/short-urls/export` | `short-urls.export` | `auth` | Streamed CSV download |
+| GET | `/invitations/create` | `invitations.create` | `auth` | Invite form |
+| POST | `/invitations` | `invitations.store` | `auth` | Store invitation and send mail |
+| GET | `/invitations/{token}` | `invitations.accept` | None | Invitation acceptance page |
+| POST | `/invitations/{token}` | `invitations.accept.store` | None | Set password and create user |
+| GET | `/clients` | `clients.index` | `auth` | SuperAdmin clients view |
+| GET | `/team` | `team.index` | `auth` | Admin team members view |
+| GET | `/s/{code}` | `redirect` | None | Public redirect to original URL |
 
 ## Database Schema
 
 ```
 companies
-├── id (bigint, PK)
-├── name (string)
-└── timestamps
+- id (bigint, primary key)
+- name (string)
+- created_at, updated_at
 
 users
-├── id (bigint, PK)
-├── company_id (nullable foreignId -> companies, nullOnDelete)
-├── name (string)
-├── email (string, unique)
-├── password (string)
-├── role (string, default 'Member')
-├── remember_token (string, nullable)
-├── email_verified_at (timestamp, nullable)
-└── timestamps
+- id (bigint, primary key)
+- company_id (bigint, foreign key -> companies, nullable, nullOnDelete)
+- name (string)
+- email (string, unique)
+- password (string)
+- role (string, default 'Member')
+- remember_token, email_verified_at, timestamps
 
 short_urls
-├── id (bigint, PK)
-├── company_id (foreignId -> companies, cascadeOnDelete)
-├── user_id (foreignId -> users, cascadeOnDelete)
-├── original_url (text)
-├── short_code (string 10, unique)
-├── hits (unsignedBigInteger, default 0)
-└── timestamps
-Indexes: (company_id, created_at), (user_id, created_at)
+- id (bigint, primary key)
+- company_id (bigint, foreign key -> companies, cascadeOnDelete)
+- user_id (bigint, foreign key -> users, cascadeOnDelete)
+- original_url (text)
+- short_code (string 10, unique)
+- hits (unsigned big integer, default 0)
+- created_at, updated_at
+- indexes: (company_id, created_at), (user_id, created_at)
 
 invitations
-├── id (bigint, PK)
-├── company_id (foreignId -> companies, cascadeOnDelete)
-├── invited_by (foreignId -> users, cascadeOnDelete)
-├── name (string, nullable)
-├── email (string)
-├── role (string)
-├── token (string 64, unique)
-├── expires_at (timestamp)
-├── accepted_at (timestamp, nullable)
-└── timestamps
+- id (bigint, primary key)
+- company_id (bigint, foreign key -> companies, cascadeOnDelete)
+- invited_by (bigint, foreign key -> users, cascadeOnDelete)
+- name (string, nullable)
+- email (string)
+- role (string)
+- token (string 64, unique)
+- expires_at (timestamp)
+- accepted_at (timestamp, nullable)
+- created_at, updated_at
 ```
 
----
+## Features
 
-## Key Features
+### Public Redirect and Atomic Hit Counter
+When a user visits `/s/{code}`, the application looks up the record, calls `$shortUrl->increment('hits')` atomically, and issues a 302 redirect to the original URL. If the code does not exist, a 404 is returned.
 
-### 1. Atomic Hits Counter
-Every visit to `/s/{code}` calls `$shortUrl->increment('hits')` atomically before redirecting via HTTP 302 to the original destination URL. This avoids concurrency race conditions under high traffic.
+### Date Filter
+The short URL lists allow filtering by calendar intervals:
+- `today`: URLs created today
+- `last_week`: URLs created in the previous calendar week
+- `this_month`: URLs created in the current calendar month
+- `last_month`: URLs created in the previous calendar month
 
-### 2. Calendar Interval Date Filter
-The URL lists and dashboard include a date filter supporting:
-- **Today** (`Carbon::today()`)
-- **Last Week** (Previous calendar week boundary)
-- **This Month** (Current calendar month and year)
-- **Last Month** (Previous calendar month and year)
-- **All Time** (Unfiltered)
+The filter logic lives in `ShortUrl::scopeInInterval()` and persists across pagination links using `withQueryString()`.
 
-The filter uses a dedicated `scopeInInterval` local scope on `ShortUrl` and persists in pagination links across pages via `withQueryString()`.
-
-### 3. Streamed CSV Export
-The `/short-urls/export` route streams CSV records on the fly using `response()->streamDownload` and `fputcsv()`. Records are fetched in chunks of 500 to keep memory footprint flat regardless of table size. The export applies the exact same visibility scope and interval filter as the page view, preventing data leakage.
-
----
+### Streamed CSV Export
+The `/short-urls/export` endpoint uses `response()->streamDownload()` and `fputcsv()`. It reads records in chunks of 500 to keep memory usage low. The export applies the same `scopeVisibleTo()` and `scopeInInterval()` as the web view, preventing users from exporting data outside their permissions.
 
 ## Design Decisions
 
-### Policy + Reusable Query-Scope Architecture
-Authorization is structured in two distinct, complementary layers:
+### Policy and Query Scope Separation
+Authorization is handled in two separate layers:
+1. **Policies (`ShortUrlPolicy`, `InvitationPolicy`)**: Check action-level permissions (e.g. `$this->authorize('create', ShortUrl::class)`). If a user cannot perform an action, the request aborts with a 403 before any query executes.
+2. **Query Scope (`ShortUrl::scopeVisibleTo()`)**: Restricts row-level visibility. SuperAdmin sees all records, Admin sees only records for their company, and Member sees only their own URLs. The same scope is used across dashboards, list views, and the CSV export so visibility rules remain consistent in one place.
 
-1. **Policies (`ShortUrlPolicy`, `InvitationPolicy`)**:  
-   Answer the question *"Can this user perform this action at all?"*  
-   Enforced at controller boundaries via `$this->authorize()` and in Blade views via `@can`. Unauthorized requests receive an immediate 403 Forbidden before executing any queries.
+### Invitation-Only Registration
+Standard Breeze registration routes (`/register`) and password reset routes were removed from `routes/auth.php`. User accounts can only be created by accepting a valid invitation token, ensuring every company user is explicitly invited.
 
-2. **Query Scopes (`ShortUrl::scopeVisibleTo(User $user)`)**:  
-   Answers the question *"Which records is this user permitted to see?"*  
-   - **SuperAdmin**: Returns all records across companies.
-   - **Admin**: Restricts to `company_id = $user->company_id`.
-   - **Member**: Restricts to `user_id = $user->id`.
-   - **Other roles**: Restricts to empty set (`1 = 0`).  
-   This ensures identical multi-tenant isolation across web dashboards, paginated index views, and streamed CSV exports.
-
-### Invitation-Only Onboarding
-Self-registration and public password-reset routes provided by default authentication scaffolding have been removed. User creation is strictly gated through invitation tokens with database transactions linking the newly created user to their designated company and role upon acceptance.
-
-### Short Code Collision Handling
-`App\Services\ShortCodeGenerator` produces 6–8 character alphanumeric strings with a collision retry threshold (up to 10 attempts), reinforced by a database-level `unique` constraint on the `short_code` column as a definitive safety net.
-
----
+### Short Code Generation
+`App\Services\ShortCodeGenerator` generates 6 to 8 character alphanumeric strings with a collision retry loop (up to 10 attempts). The `short_code` column has a unique database constraint as a safety net.
 
 ## AI Usage
 
-Used **Antigravity (Google DeepMind)** for Laravel syntax lookups, initial scaffolding structure, and debugging test environment configurations. All architectural decisions, business rules implementation, policy/scope design, and test suites were written and verified for this assignment.
+Used ChatGPT / Cursor for Laravel syntax lookups, initial route scaffolding, and debugging test environment setup. Application architecture, database schema, authorization logic, and test cases were written and verified manually for this assignment.
