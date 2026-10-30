@@ -121,4 +121,4 @@ The filter logic lives in `ShortUrl::scopeInInterval()` and persists across pagi
 
 ## AI Usage
 
-Used ChatGPT for Laravel syntax lookups, initial route scaffolding, and debugging. Application logic, authorization rules, and database schema were implemented manually.
+Used ChatGPT for Laravel syntax lookups, initial route scaffolding, and debugging. 
