@@ -16,10 +16,7 @@ Route::redirect('/', '/dashboard');
 // Public short-link redirect — no authentication required.
 Route::get('/s/{code}', RedirectController::class)->name('redirect');
 
-// Invitation acceptance is public; the token is the only gate.
-Route::get('/invitations/{token}', [InvitationAcceptController::class, 'show'])->name('invitations.accept');
-Route::post('/invitations/{token}', [InvitationAcceptController::class, 'store'])->name('invitations.accept.store');
-
+// Authenticated application routes.
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
@@ -34,5 +31,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
     Route::get('/team', [TeamController::class, 'index'])->name('team.index');
 });
+
+// Invitation acceptance is public; defined after /invitations/create to avoid route collisions.
+Route::get('/invitations/{token}', [InvitationAcceptController::class, 'show'])->name('invitations.accept');
+Route::post('/invitations/{token}', [InvitationAcceptController::class, 'store'])->name('invitations.accept.store');
 
 require __DIR__.'/auth.php';
