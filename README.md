@@ -64,18 +64,6 @@ Open `http://127.0.0.1:8000` in your browser.
 
 The SuperAdmin account is created via raw SQL (`DB::insert`) with bound parameters and `Hash::make()` inside `DatabaseSeeder.php`, without using Eloquent or factories.
 
-## Testing the Invitation Flow
-
-The app uses `MAIL_MAILER=log`, so no real mail server is needed.
-
-1. Log in as SuperAdmin (`superadmin@urlshortener.test` / `password`).
-2. Click "Invite New Client", enter a company name and email, and submit.
-3. The generated acceptance link will appear in a flash message on the page. It is also logged to `storage/logs/laravel.log`.
-4. Open the link in an incognito window (`/invitations/{token}`).
-5. Enter and confirm a password. The account is created, associated with the company, and automatically logged in.
-6. The token is marked accepted. Attempting to reuse or visit an expired token returns a 410 response.
-
-Admins can invite team members to their own company using the same flow from their dashboard.
 
 ## Database Schema
 
@@ -119,8 +107,6 @@ invitations
 
 ## Features
 
-### Public Redirect and Hit Counter
-Visiting `/s/{code}` calls `$shortUrl->increment('hits')` atomically and redirects (302) to the original URL. If the code does not exist, a 404 is returned.
 
 ### Date Filter
 The short URL lists allow filtering by calendar intervals:
