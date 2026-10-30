@@ -117,8 +117,7 @@ The short URL lists allow filtering by calendar intervals:
 
 The filter logic lives in `ShortUrl::scopeInInterval()` and persists across pagination links using `withQueryString()`.
 
-### Streamed CSV Export
-The `/short-urls/export` endpoint uses `response()->streamDownload()` and `fputcsv()`. It reads records in chunks of 500 to keep memory usage low. The export applies the same visibility and interval scopes as the web view.
+
 
 ## AI Usage
 
